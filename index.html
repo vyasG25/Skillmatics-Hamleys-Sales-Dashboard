@@ -761,51 +761,79 @@
     .main{padding:16px;}
     .brand-divider,.brand-title{display:none;}
   }
+
+  /* ===== Split-screen login showcase (6 rows, alternating marquee) ===== */
+  .lp-showcase{position:relative;flex:1 1 58%;min-width:0;height:100%;overflow:hidden;
+    background:radial-gradient(120% 90% at 8% 0%,#eef4fa 0,transparent 55%),radial-gradient(120% 100% at 100% 100%,#fdf3ea 0,transparent 50%),var(--bg);}
+  .lp-rows{position:absolute;inset:0;height:100%;display:grid;grid-template-rows:repeat(6,1fr);overflow:hidden;
+    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 6%,#000 94%,transparent 100%);
+            mask-image:linear-gradient(180deg,transparent 0,#000 6%,#000 94%,transparent 100%);}
+  .lp-row{position:relative;min-height:0;overflow:hidden;display:flex;align-items:center;}
+  .lp-track{display:flex;align-items:center;width:max-content;will-change:transform;}
+  .lp-row.left  .lp-track{animation:lpLeft  var(--dur,56s) linear infinite;}
+  .lp-row.right .lp-track{animation:lpRight var(--dur,56s) linear infinite;}
+  .lp-tile{flex:0 0 auto;margin-right:14px;height:calc((100vh / 6) - 14px);height:calc((100dvh / 6) - 14px);
+    aspect-ratio:1/1;border-radius:16px;overflow:hidden;background:#fff;border:1px solid rgba(30,28,24,.06);
+    box-shadow:0 6px 20px rgba(30,28,24,.08),0 1px 3px rgba(30,28,24,.05);}
+  .lp-tile img{width:100%;height:100%;object-fit:cover;display:block;}
+  @keyframes lpLeft {from{transform:translateX(0)}    to{transform:translateX(-50%)}}
+  @keyframes lpRight{from{transform:translateX(-50%)} to{transform:translateX(0)}}
+  .lp-showcase::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(90deg,transparent 62%,rgba(255,255,255,.55) 86%,#fff 100%);}
+  .lp-auth{flex:0 0 42%;max-width:560px;min-width:400px;height:100%;background-color:var(--surface);
+    background-image:
+      radial-gradient(120% 75% at 100% 0%, rgba(29,129,196,.07), transparent 58%),
+      radial-gradient(100% 70% at 0% 100%, rgba(201,122,60,.05), transparent 60%),
+      radial-gradient(rgba(30,28,24,.055) 1px, transparent 1.4px);
+    background-size:auto, auto, 18px 18px;
+    background-position:center, center, -9px -9px;
+    display:flex;align-items:center;justify-content:center;padding:40px;box-shadow:-18px 0 50px rgba(30,28,24,.08);z-index:2;}
+  .lp-card{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;animation:lpRise .6s cubic-bezier(.16,1,.3,1) both;}
+  @keyframes lpRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  @media (prefers-reduced-motion:reduce){.lp-track{animation:none!important;}}
 </style>
 </head>
 <body>
 
 <!-- LOGIN OVERLAY -->
-<div id="loginOverlay" style="
-  position:fixed;inset:0;z-index:9999;
-  background:var(--bg);
-  display:flex;align-items:center;justify-content:center;
-">
-  <div style="
-    background:var(--surface);border:1px solid var(--border);
-    border-radius:16px;padding:40px 44px;width:100%;max-width:400px;
-    box-shadow:0 8px 40px rgba(30,28,24,.14);
-    display:flex;flex-direction:column;align-items:center;gap:0;
-  ">
-    <div class="brand-name" style="margin-bottom:7px;">
-      <img src="https://www.skillmatics.in/cdn/shop/files/Skillmatics_Logo_RGB_Skillmatics_Logo_Horizontal_NewBlue_1d81c4_1_ec4fa524-c3fc-4526-bfa2-15a59bfba561_101x.svg?v=1747739594" alt="Skillmatics" class="brand-wordmark-img" style="height:34px;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
-      <span class="brand-wordmark-text" style="display:none;font-size:28px;">Skillmatics</span>
-    </div>
-    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:28px;letter-spacing:-.1px;">Hamleys Sales Dashboard</div>
-    <div style="width:100%;display:flex;flex-direction:column;gap:14px;">
-      <div style="display:flex;flex-direction:column;gap:5px;">
-        <label style="font-size:12px;font-weight:600;color:#1d81c4;letter-spacing:.4px;text-transform:uppercase;">Username</label>
-        <input id="loginUser" type="text" autocomplete="username" placeholder="Enter username"
-          style="padding:10px 13px;border:1px solid var(--border2);border-radius:var(--rs);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;background:var(--surface2);color:#1d81c4;"
-          onfocus="this.style.borderColor='#1d81c4'" onblur="this.style.borderColor='var(--border2)'"
-          onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+<div id="loginOverlay" style="position:fixed;inset:0;z-index:9999;display:flex;background:var(--bg);overflow:hidden;">
+  <!-- LEFT: animated product showcase -->
+  <div class="lp-showcase" aria-hidden="true">
+    <div class="lp-rows" id="lpRows"></div>
+  </div>
+  <!-- RIGHT: credentials -->
+  <div class="lp-auth">
+    <div class="lp-card">
+      <div class="brand-name" style="margin-bottom:7px;">
+        <img src="https://www.skillmatics.in/cdn/shop/files/Skillmatics_Logo_RGB_Skillmatics_Logo_Horizontal_NewBlue_1d81c4_1_ec4fa524-c3fc-4526-bfa2-15a59bfba561_101x.svg?v=1747739594" alt="Skillmatics" class="brand-wordmark-img" style="height:34px;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
+        <span class="brand-wordmark-text" style="display:none;font-size:28px;">Skillmatics</span>
       </div>
-      <div style="display:flex;flex-direction:column;gap:5px;">
-        <label style="font-size:12px;font-weight:600;color:#1d81c4;letter-spacing:.4px;text-transform:uppercase;">Password</label>
-        <input id="loginPass" type="password" autocomplete="current-password" placeholder="Enter password"
-          style="padding:10px 13px;border:1px solid var(--border2);border-radius:var(--rs);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;background:var(--surface2);color:#1d81c4;"
-          onfocus="this.style.borderColor='#1d81c4'" onblur="this.style.borderColor='var(--border2)'"
-          onkeydown="if(event.key==='Enter') attemptLogin()">
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:28px;letter-spacing:-.1px;">Hamleys Sales Dashboard</div>
+      <div style="width:100%;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <label style="font-size:12px;font-weight:600;color:#1d81c4;letter-spacing:.4px;text-transform:uppercase;">Username</label>
+          <input id="loginUser" type="text" autocomplete="username" placeholder="Enter username"
+            style="padding:10px 13px;border:1px solid var(--border2);border-radius:var(--rs);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;background:var(--surface2);color:#1d81c4;"
+            onfocus="this.style.borderColor='#1d81c4'" onblur="this.style.borderColor='var(--border2)'"
+            onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <label style="font-size:12px;font-weight:600;color:#1d81c4;letter-spacing:.4px;text-transform:uppercase;">Password</label>
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="Enter password"
+            style="padding:10px 13px;border:1px solid var(--border2);border-radius:var(--rs);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;background:var(--surface2);color:#1d81c4;"
+            onfocus="this.style.borderColor='#1d81c4'" onblur="this.style.borderColor='var(--border2)'"
+            onkeydown="if(event.key==='Enter') attemptLogin()">
+        </div>
+        <div id="loginError" style="display:none;font-size:13px;color:var(--red);background:var(--red-light);border:1px solid var(--red);border-radius:var(--rs);padding:9px 13px;text-align:center;"></div>
+        <button id="loginBtn" onclick="attemptLogin()" style="
+          margin-top:4px;padding:12px;
+          background:#1d81c4;color:#fff;border:none;border-radius:var(--rs);
+          font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;
+          transition:background .2s;
+        " onmouseover="this.style.background='#176aa1'" onmouseout="this.style.background='#1d81c4'">
+          Sign In
+        </button>
       </div>
-      <div id="loginError" style="display:none;font-size:13px;color:var(--red);background:var(--red-light);border:1px solid var(--red);border-radius:var(--rs);padding:9px 13px;text-align:center;"></div>
-      <button id="loginBtn" onclick="attemptLogin()" style="
-        margin-top:4px;padding:12px;
-        background:#1d81c4;color:#fff;border:none;border-radius:var(--rs);
-        font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;
-        transition:background .2s;
-      " onmouseover="this.style.background='#176aa1'" onmouseout="this.style.background='#1d81c4'">
-        Sign In
-      </button>
     </div>
   </div>
 </div>
@@ -4145,6 +4173,31 @@ async function init() {
 }
 
 init();
+</script>
+<script>
+/* ===== Login showcase: build 6 alternating marquee rows (10 imgs/row, ~5 visible) ===== */
+(function(){
+  var IMAGES = ["https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL28NTB/0/MKbmj2EbnA-491603818-1.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494514691/UVfxWzI8Ojh0-494514691_1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL201RR/0/IpBaANPxuI-492908399-1_2980.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000491892737/j8ClA1POSL-491892737-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/493175401/0/8t7PyPciNh-493175401-1_7149.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/493176584/0/606zZospln-493176584-1_5767.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL35GAW/0/Z7aAOh3yac-491568705-1_5870.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000491892736/x20C0Xd1CEM-491892736-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL237FBG/0/_SO_lBt-pE-492908407-1_7960.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/493176581/0/DblYM7RHUZd-493176581-1_6223.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL36GWS/0/G5rzzZt3HB-491568706-1_6910.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494423356/0/sgD4vsPK8q-494423356-1_6733.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL234ICWU/0/2UxlBqFMtV-492908409-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000492365397/SaM-JJUUJD-492365397-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL232GBAW/0/_UxLXrKO44-492908408-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL128TOT/0/H5UUcWCdbZ-492908404-1_4495.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/493176580/0/zznDRkWjB5-493176580-1_1144.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494347879/0/VGVA8GqIjfq-494347879-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494423354/0/wYyJ8uthhS-494423354-1_7540.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL119PCB/0/liPEwSMjra-492908402-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000491892740/hKRco90nfr-491892740-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494423355/0/igwz4S7-iD-494423355-1_7835.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494500669/uZlybJEcv-494500669_1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494348582/0/Db55fANkXR-494348582-1_7596.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/493176583/0/H82s_7mjca-493176583-1_4257.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494377539/IVBAp8PEcq-494377539-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494347877/0/6ewqSauT5f-494347877-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000492407473/v5vgHw8JdU-492407473-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/493176579/0/oFNKpCmIdzQ-493176579-1_6578.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL194FWH/0/FZHD8d_iURQ-492908400-1_6233.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494230158/0/kx5Q9iQc_W-494230158-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL120CWB/0/FKuQn257A92-492908403-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494347876/0/89Bx0blwdK4-494347876-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494377540/0/TMwT6Ksj7g-494377540-1_1140.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000491892739/7DXYxhjNBk-491892739.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL06SEB/0/tBRImV6HDZ-491334540-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494377541/0/y67t7EMpMT-494377541-1_4722.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494377536/H3UAVGyhtQ-494377536-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000492409461/591fDCVZfiqz-492409461-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494347878/0/2lvXU_6zWo-494347878-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494613965/qQiIlFZ_h_I9-494613965-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494500670/vcbyX3fnaP-494500670_1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494377537/t3aUQM0I9J-494377537-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL102MWFR/0/c9umpli3Vh-492908401-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494613966/TV6klYd9lcyj-494613966-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494230156/0/7owg_g_q5d-494230156-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494423907/O84LcqIpQ6T-494423907_1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494514690/PQ-ksYsnWVg3-494514690_1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL290FIP/0/xWSDGapUGh-492910832-1_7320.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000493176586/lFNYegvshE-493176586-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000492365391/ha1zvff3XR-492365391-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494500262/daMMJfj44RDk-494500262_1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL101MWIH/0/txjBdCogL8-492908398-1_5747.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/493831287/0/reud9nhKT-9-493831287-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL259MMTB/0/am0r_gtTPG-492910825-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/000000000494444836/pdejnSJ0x4A-494444836_1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494348580/0/FAKcvrmR8t-494348580-1_9542.webp?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL21MCS/0/4FjNZO1lBG-492409470-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/SKILL97CCB/0/3fEzNHYwEo-492908405-1.jpg?dpr=1", "https://cdn.fynd.com/v2/falling-surf-7c8bb8/fyprod/wrkr/products/pictures/item/free/original/skillmatics/494230159/0/_QjIw1VKJ8-494230159-1.jpg?dpr=1"];
+  var ROWS = 6, PER_ROW = 10;
+  var DURS = [58,52,64,50,60,54];
+  var host = document.getElementById('lpRows');
+  if(!host) return;
+  for(var r=0;r<ROWS;r++){
+    var set = IMAGES.slice(r*PER_ROW, r*PER_ROW+PER_ROW);
+    var row = document.createElement('div');
+    row.className = 'lp-row ' + (r%2===0 ? 'left' : 'right');   // rows 1,3,5 left; 2,4,6 right
+    var track = document.createElement('div');
+    track.className = 'lp-track';
+    track.style.setProperty('--dur', DURS[r]+'s');
+    set.concat(set).forEach(function(url){                      // duplicate once -> seamless -50% loop
+      var tile = document.createElement('div'); tile.className = 'lp-tile';
+      var img = document.createElement('img');
+      img.src = url; img.alt = ''; img.loading = 'eager'; img.decoding = 'async';
+      tile.appendChild(img); track.appendChild(tile);
+    });
+    row.appendChild(track); host.appendChild(row);
+  }
+})();
 </script>
 </body>
 </html>
