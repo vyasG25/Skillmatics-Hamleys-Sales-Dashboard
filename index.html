@@ -2986,9 +2986,9 @@ function renderKpiReport(){
   // per-group colour palette (band, light tint, deep text) — Sale / Qty / ASP,
   // pulled from the dashboard theme tokens so the bands match the rest of the UI.
   const GC=[
-    {b:'var(--accent)',  l:'var(--accent-light)',  d:'#123f26'},          // Sale  deep brand green
-    {b:'var(--blue)',    l:'var(--blue-light)',    d:'var(--blue-dark)'}, // Qty   blue
-    {b:'var(--accent2)', l:'var(--accent2-light)', d:'#48326f'},          // ASP   purple
+    {b:'var(--teal)', l:'var(--teal-light)', d:'#1f6060'},          // 1st  teal
+    {b:'var(--gold)', l:'var(--gold-light)', d:'#8f6a22'},          // 2nd  gold
+    {b:'var(--red)',  l:'var(--red-light)',  d:'#8a2730'},          // 3rd  red
   ];
   const gc=gi=>GC[gi%GC.length];
   function cell(v,kind){
