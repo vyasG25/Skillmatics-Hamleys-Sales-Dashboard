@@ -596,7 +596,7 @@
   table.ddt tr.total-row td{font-weight:800;background:var(--blue-light)!important;color:var(--blue-dark);border-top:2px solid var(--blue-dark);}
   table.ddt tr.total-row td.dcol,table.ddt tr.total-row td.dcol2{background:var(--blue-light)!important;color:var(--blue-dark);}
   table.ddt tr.total-row td.totcell{background:#f1e6c4!important;color:#5a4310;}
-  /* stacked multi-metric cell (Value + ASP, or All) */
+  /* stacked multi-metric cell (the "All" view: Qty / Value / ASP) */
   .ddt-cell{display:flex;flex-direction:column;gap:1px;align-items:flex-end;line-height:1.2;}
   .ddt-cell .cv{font-weight:700;color:var(--text);}
   .ddt-cell .cq{font-size:11px;font-weight:600;color:var(--text2);}
@@ -1646,11 +1646,10 @@ let prodFilt = { store: new Set(), customer: new Set(), category: new Set() };
 let weeklyFY = null;          // selected fiscal-year start year (e.g. 2025 => FY25)
 // Local Location & Stores + Product filters (empty Set = All). Independent of global filters.
 let weeklyFilt = { zone:new Set(), state:new Set(), store:new Set(), customer:new Set(), category:new Set(), brand:new Set(), family:new Set(), cls:new Set(), brick:new Set(), sku:new Set() };
-// Dashboard "Monthly Sales — Year on Year" report (responds to Location & Product global filters)
-let yoyMetric = 'all';        // 'all' | 'qty' | 'value' | 'asp'
+// Dashboard "Monthly Sales — Year on Year" report — fixed Qty·Value·ASP view (no toggle).
 // Daily Trends (Week rows × Day-of-week columns, per calendar year). Independent of global filters.
 let dailyYear = null;         // selected calendar year (e.g. 2026)
-let dailyMetric = 'all';      // 'qty' | 'value' | 'asp' | 'va' (Value+ASP) | 'all'
+let dailyMetric = 'all';      // 'all' | 'qty' | 'value' | 'asp'
 let dailyFilt = { zone:new Set(), state:new Set(), store:new Set(), customer:new Set(), category:new Set(), brand:new Set(), family:new Set(), cls:new Set(), brick:new Set(), sku:new Set() };
 // Brand Trends (Brand, current vs last — LFL same period)
 let brandMode = 'month';      // 'month' | 'fy'
@@ -2756,12 +2755,6 @@ function renderTopPerformer() {
 // global Location & Stores and Product filters; ignores the Period (FY / Quarter /
 // Month) selectors and the date range so the full month × year matrix is always shown.
 const YOY_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const YOY_METRICS = [
-  { k:'all',   label:'Qty · Value · ASP' },
-  { k:'qty',   label:'Qty' },
-  { k:'value', label:'Value' },
-  { k:'asp',   label:'ASP' },
-];
 function renderMonthlyYoY(){
   const host = document.getElementById('secMonthlyYoY');
   if (!host) return;
@@ -2788,16 +2781,10 @@ function renderMonthlyYoY(){
   const tot = Array.from({length:12}, ()=>({q:0,s:0}));
   years.forEach(y=>{ for (let mi=0; mi<12; mi++){ tot[mi].q += agg[y][mi].q; tot[mi].s += agg[y][mi].s; } });
 
-  // Column groups: Total + each year. Cells depend on the active metric toggle.
+  // Column groups: all-years Total + each year. Every group shows Qty · Value · ASP.
   const groups = [{ year:null, label:'Total', cells:tot, isTot:true }]
     .concat(years.map(y=>({ year:y, label:String(y), cells:agg[y], isTot:false })));
-
-  const metricCols = yoyMetric === 'all'
-    ? [{k:'qty',h:'Qty'},{k:'value',h:'Value'},{k:'asp',h:'ASP'}]
-    : yoyMetric === 'qty'   ? [{k:'qty',h:'Qty'}]
-    : yoyMetric === 'value' ? [{k:'value',h:'Value'}]
-    : [{k:'asp',h:'ASP'}];
-  const cspan = metricCols.length;
+  const metricCols = [{k:'qty',h:'Qty'},{k:'value',h:'Value'},{k:'asp',h:'ASP'}];
 
   const cellHtml = (c, gi) => {
     const start = gi === 0 ? ' grp-start' : '';
@@ -2805,22 +2792,16 @@ function renderMonthlyYoY(){
     const has = c.q || c.s;
     return metricCols.map((m,idx)=>{
       const cls = (idx===0?start:'') + (gi===0 ? ' totcell' : '');
-      if (!has) return `<td class="${cls} ddt-muted">—</td>`;
+      if (!has) return `<td class="${cls.trim()} ddt-muted">—</td>`;
       const v = m.k==='qty' ? fmt(c.q) : m.k==='value' ? fmtV(c.s) : (asp==null?'—':fmtRs(asp));
-      return `<td class="${cls}">${v}</td>`;
+      return `<td class="${cls.trim()}">${v}</td>`;
     }).join('');
   };
 
-  // Header — two rows when "All" (group + sub), single row otherwise.
-  let thead;
-  if (cspan > 1){
-    const grpCells = groups.map(g=>`<th class="grp${g.isTot?' grp-tot':''}" colspan="${cspan}">${escapeHtml(g.label)}${g.isTot?'<span class="ddt-rng"><br>all years</span>':''}</th>`).join('');
-    const subCells = groups.map(g=>metricCols.map(m=>`<th class="${g.isTot?'sub-tot':''}">${m.h}</th>`).join('')).join('');
-    thead = `<thead><tr class="grp"><th class="dcol" rowspan="2">Month</th>${grpCells}</tr><tr class="sub">${subCells}</tr></thead>`;
-  } else {
-    const grpCells = groups.map(g=>`<th class="grp${g.isTot?' grp-tot':''}">${escapeHtml(g.label)}</th>`).join('');
-    thead = `<thead><tr class="single"><th class="dcol">Month</th>${grpCells}</tr></thead>`;
-  }
+  // Two-row header: year group + Qty/Value/ASP sub-labels.
+  const grpCells = groups.map(g=>`<th class="grp${g.isTot?' grp-tot':''}" colspan="3">${escapeHtml(g.label)}${g.isTot?'<span class="ddt-rng"><br>all years</span>':''}</th>`).join('');
+  const subCells = groups.map(g=>metricCols.map(m=>`<th class="${g.isTot?'sub-tot':''}">${m.h}</th>`).join('')).join('');
+  const thead = `<thead><tr class="grp"><th class="dcol" rowspan="2">Month</th>${grpCells}</tr><tr class="sub">${subCells}</tr></thead>`;
 
   const bodyRows = YOY_MONTHS.map((mn, mi)=>{
     const cells = groups.map((g,gi)=>cellHtml(g.cells[mi], gi)).join('');
@@ -2833,22 +2814,18 @@ function renderMonthlyYoY(){
   const totRowCells = groups.map((g,gi)=>cellHtml(yearTot[g.label], gi)).join('');
   const totalRow = `<tr class="total-row"><td class="dcol">Full Year</td>${totRowCells}</tr>`;
 
-  const pills = YOY_METRICS.map(m=>`<button class="zmom-pill m-pill yoy-pill${m.k===yoyMetric?' active':''}" data-yoy="${m.k}">${m.label}</button>`).join('');
   const grandQ = years.reduce((a,y)=>a+yearTot[String(y)].q,0);
   const grandS = years.reduce((a,y)=>a+yearTot[String(y)].s,0);
 
   host.innerHTML = `
     <div class="yoy-bar">
-      <div class="bt-fg"><label class="bt-flabel" style="margin-right:2px">View</label><div class="bt-chips">${pills}</div></div>
       <div class="bt-period" style="margin-left:auto;">
         <span class="bt-period-rng">${fmt(grandQ)} units · ${fmtV(grandS)}</span>
         <span class="bt-period-tag">${years[0]}–${years[years.length-1]}</span>
       </div>
     </div>
     <div class="ddt-wrap"><table class="ddt">${thead}<tbody>${bodyRows}${totalRow}</tbody></table></div>
-    <div class="ddt-note">Calendar month (Jan–Dec) × calendar year · <b>Total</b> = all years combined · ASP = Value ÷ Qty · responds to the <b>Location &amp; Stores</b> and <b>Product</b> filters · ignores the Period selectors &amp; date range.</div>`;
-
-  host.querySelectorAll('.yoy-pill').forEach(b=>b.addEventListener('click',()=>{ yoyMetric=b.dataset.yoy; renderMonthlyYoY(); }));
+    <div class="ddt-note">Calendar month (Jan–Dec) × calendar year · each year shows <b>Qty · Value · ASP</b> · <b>Total</b> = all years combined · ASP = Value ÷ Qty · responds to the <b>Location &amp; Stores</b> and <b>Product</b> filters · ignores the Period selectors &amp; date range.</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3954,14 +3931,12 @@ function renderWeeklyTrends(){
 // Independent of the global filter bar; has its own Location & Product filters.
 // ═══════════════════════════════════════════════════════════════
 const DAILY_METRICS = [
+  { k:'all',   label:'All' },
   { k:'qty',   label:'Quantity' },
   { k:'value', label:'Value' },
   { k:'asp',   label:'ASP' },
-  { k:'va',    label:'Value + ASP' },
-  { k:'all',   label:'All' },
 ];
 const DOW_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-const DOW_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 function renderDailyTrends(){
   const host = document.getElementById('secDailyTrends');
   if (!host) return;
@@ -4017,30 +3992,29 @@ function renderDailyTrends(){
     }
     const weeks = Object.values(wk).sort((a,b)=>a.w-b.w);
 
-    const M = dailyMetric;
-    const wide = (M==='all') ? 3 : (M==='va') ? 2 : 1;
+    const M = dailyMetric;   // 'all' | 'qty' | 'value' | 'asp'
 
-    // One cell's inner HTML for a {q,s} bucket.
+    // One cell's inner HTML for a {q,s} bucket. "All" stacks Qty/Value/ASP; the
+    // single-metric views show just that number.
     const cellInner = c => {
       const has = c.q||c.s, asp = c.q ? c.s/c.q : null;
       if (!has) return '<span class="ddt-muted">—</span>';
       if (M==='qty')   return fmt(c.q);
       if (M==='value') return fmtV(c.s);
       if (M==='asp')   return asp==null?'—':fmtRs(asp);
-      if (M==='va')    return `<div class="ddt-cell"><span class="cv">${fmtV(c.s)}</span><span class="ca">${asp==null?'—':fmtRs(asp)}</span></div>`;
       // all
       return `<div class="ddt-cell"><span class="cq">${fmt(c.q)}</span><span class="cv">${fmtV(c.s)}</span><span class="ca">${asp==null?'—':fmtRs(asp)}</span></div>`;
     };
 
-    // Heat shade (value) — only meaningful when value is shown.
+    // Heat shade (value) — only when Value is part of the view.
     let maxS = 0;
-    if (M!=='qty' && M!=='asp') weeks.forEach(e=>e.days.forEach(c=>{ if(c.s>maxS) maxS=c.s; }));
-    const shade = s => (maxS && (M==='value'||M==='va'||M==='all')) ? `style="background:rgba(45,122,78,${(0.04+0.30*Math.min(1,s/maxS)).toFixed(3)})"` : '';
+    if (M==='value' || M==='all') weeks.forEach(e=>e.days.forEach(c=>{ if(c.s>maxS) maxS=c.s; }));
+    const shade = s => maxS ? `style="background:rgba(45,122,78,${(0.04+0.30*Math.min(1,s/maxS)).toFixed(3)})"` : '';
 
     const rowFor = e => {
       const dayCells = e.days.map((c,di)=>{
-        const start = di===0 ? ' grp-start' : '';
-        return `<td class="${start.trim()}" ${shade(c.s)}>${cellInner(c)}</td>`;
+        const start = di===0 ? 'grp-start' : '';
+        return `<td class="${start}" ${shade(c.s)}>${cellInner(c)}</td>`;
       }).join('');
       const tq = e.days.reduce((a,c)=>a+c.q,0), ts = e.days.reduce((a,c)=>a+c.s,0);
       return `<tr>
@@ -4062,37 +4036,15 @@ function renderDailyTrends(){
         <td class="totcell">${cellInner({q:gQ,s:gS})}</td>
       </tr>`;
 
-    // Header. Single row for one-metric views; with a sub caption for va/all.
-    const dayHead = DOW_NAMES.map((d,di)=> wide>1
-        ? `<th class="grp${di===0?' grp-start':''}">${d}</th>`
-        : `<th${di===0?' class="grp-start"':''}>${d}</th>`).join('');
-    let thead;
-    if (wide>1){
-      const subFor = isTot => {
-        const labels = M==='va' ? ['Value','ASP'] : ['Qty','Value','ASP'];
-        return labels.map(l=>`<th class="${isTot?'sub-tot':''}">${l}</th>`).join('');
-      };
-      const grpDays = DOW_NAMES.map((d,di)=>`<th class="grp${di===0?' grp-start':''}" colspan="${wide}">${DOW_SHORT[di]}</th>`).join('');
-      const subDays = DOW_NAMES.map(()=>subFor(false)).join('');
-      thead = `<thead>
-        <tr class="grp">
-          <th class="dcol" rowspan="2">Week</th>
-          <th class="dcol2" rowspan="2">Date Range</th>
-          ${grpDays}
-          <th class="grp grp-tot" colspan="${wide}">Total</th>
-        </tr>
-        <tr class="sub">${subDays}${subFor(true)}</tr>
-      </thead>`;
-    } else {
-      const metricLbl = M==='qty'?'Qty':M==='value'?'Value':'ASP';
-      thead = `<thead><tr class="single">
+    // Header — always a single row of day names (one column per day) + Total.
+    const dayHead = DOW_NAMES.map((d,di)=>`<th${di===0?' class="grp-start"':''}>${d}</th>`).join('');
+    const thead = `<thead><tr class="single">
         <th class="dcol">Week</th><th class="dcol2">Date Range</th>
         ${dayHead}
-        <th class="grp-tot grp-start">Total<span class="ddt-rng"><br>${metricLbl}</span></th>
+        <th class="grp-tot grp-start">Total</th>
       </tr></thead>`;
-    }
 
-    const colCount = 2 + 7*wide + wide;
+    const colCount = 2 + 7 + 1;
     const body = weeks.length
       ? weeks.map(rowFor).join('') + totalRow
       : `<tr><td class="dcol">—</td><td class="dcol2">—</td><td colspan="${colCount-2}" style="text-align:center;padding:18px;color:var(--text3)">No sales match the current filters for ${dailyYear}.</td></tr>`;
