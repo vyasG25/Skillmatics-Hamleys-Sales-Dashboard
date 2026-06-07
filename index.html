@@ -533,6 +533,14 @@
   table.brand-tbl tbody tr:not(.total-row):nth-child(even) td.bcol,
   table.brand-tbl tbody tr:not(.total-row):nth-child(even) td.bcol2{background:#f0ede7;}
   table.brand-tbl tbody tr:hover td:not(.bcol):not(.bcol2){background:rgba(43,90,126,.05);}
+  /* TOTAL column highlighted in the same gold/yellow used across the other reports */
+  table.brand-tbl th.grp-totcol{background:#f7ecca;color:var(--gold);box-shadow:inset 0 -2px 0 rgba(184,137,46,.30);}
+  table.brand-tbl th.sub-totcol{background:var(--gold-light);color:var(--gold);}
+  table.brand-tbl td.bt-totcol{background:var(--gold-light)!important;border-left:1px solid rgba(184,137,46,.30);}
+  table.brand-tbl td.bt-totcol .bt-main{color:#5a4310;}
+  table.brand-tbl td.bt-totcol .bt-ly{color:#8a7330;}
+  table.brand-tbl tr.total-row td.bt-totcol{background:#efe3bf!important;}
+  table.brand-tbl tr.total-row td.bt-totcol .bt-main{color:#4a3608;}
   .bt-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
   .bt-main{font-size:13.5px;font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;}
   .bt-cmp{font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;}
@@ -2814,16 +2822,7 @@ function renderMonthlyYoY(){
   const totRowCells = groups.map((g,gi)=>cellHtml(yearTot[g.label], gi)).join('');
   const totalRow = `<tr class="total-row"><td class="dcol">Full Year</td>${totRowCells}</tr>`;
 
-  const grandQ = years.reduce((a,y)=>a+yearTot[String(y)].q,0);
-  const grandS = years.reduce((a,y)=>a+yearTot[String(y)].s,0);
-
   host.innerHTML = `
-    <div class="yoy-bar">
-      <div class="bt-period" style="margin-left:auto;">
-        <span class="bt-period-rng">${fmt(grandQ)} units · ${fmtV(grandS)}</span>
-        <span class="bt-period-tag">${years[0]}–${years[years.length-1]}</span>
-      </div>
-    </div>
     <div class="ddt-wrap"><table class="ddt">${thead}<tbody>${bodyRows}${totalRow}</tbody></table></div>
     <div class="ddt-note">Calendar month (Jan–Dec) × calendar year · each year shows <b>Qty · Value · ASP</b> · <b>Total</b> = all years combined · ASP = Value ÷ Qty · responds to the <b>Location &amp; Stores</b> and <b>Product</b> filters · ignores the Period selectors &amp; date range.</div>`;
 }
@@ -2984,11 +2983,12 @@ function renderKpiReport(){
              selFY?`CY ${selFY}`:'CY YTD',   lyFY?`LY ${lyFY}`:'LY YTD' ];
   const groups=KPI_GROUPS.filter(g=>kpiVisible.has(g.key));
 
-  // per-group colour palette (band, light tint, deep text) — Sale / Qty / ASP
+  // per-group colour palette (band, light tint, deep text) — Sale / Qty / ASP,
+  // pulled from the dashboard theme tokens so the bands match the rest of the UI.
   const GC=[
-    {b:'#1a5f3a',l:'#e4f2eb',d:'#12492c'}, // Sale  green
-    {b:'#2b5a7e',l:'#e6eff7',d:'#21465f'}, // Qty   blue
-    {b:'#b8892e',l:'#fdf5e2',d:'#946d20'}, // ASP   gold
+    {b:'var(--green)', l:'var(--green-light)', d:'#1f5a38'},          // Sale  green
+    {b:'var(--blue)',  l:'var(--blue-light)',  d:'var(--blue-dark)'}, // Qty   blue
+    {b:'var(--gold)',  l:'var(--gold-light)',  d:'#8f6a22'},          // ASP   gold
   ];
   const gc=gi=>GC[gi%GC.length];
   function cell(v,kind){
@@ -3323,23 +3323,17 @@ function renderZoneMoM(){
   const mPills = ZONE_METRICS.map(m=>`<button class="zmom-pill m-pill${m.k===zmomMetric?' active':''}" data-metric="${m.k}">${m.label}</button>`).join('');
 
   const hasActive = zmomFilt.customer.size || zmomFilt.category.size;
-  // ── Two-row bt-bar ──
-  // Row 1: Fiscal Year · View (metric) · Reset · period badge
-  // Row 2: Customer Type · Store Category
+  // ── Single-row bt-bar: Fiscal Year · View · Customer Type · Store Category · Reset · period badge
   host.innerHTML = `
-    <div class="bt-bar" style="flex-direction:column;align-items:stretch;gap:10px;">
-      <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
-        <div class="bt-fg"><label class="bt-flabel">Fiscal Year</label><div class="bt-chips">${fyPills}</div></div>
-        <div class="bt-fg"><label class="bt-flabel">View</label><div class="bt-chips">${mPills}</div></div>
-        <button class="kpi-reset" id="zmReset" title="Clear all Zone Trends filters">↺ Reset</button>
-        <div class="bt-period" style="margin-left:auto;">
-          <span class="bt-period-rng"><b>${zmomFyLabel(zmomFY)}</b> · Apr–Mar</span>
-          <span class="bt-period-tag">Zone Trends</span>
-        </div>
-      </div>
-      <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;padding-top:8px;border-top:1px solid #cbdcec;">
-        <div class="bt-fg"><label class="bt-flabel">Customer Type</label><div class="bt-chips">${zmChip('customer','Customer Type')}</div></div>
-        <div class="bt-fg"><label class="bt-flabel">Store Category</label><div class="bt-chips">${zmChip('category','Store Category')}</div></div>
+    <div class="bt-bar">
+      <div class="bt-fg"><label class="bt-flabel">Fiscal Year</label><div class="bt-chips">${fyPills}</div></div>
+      <div class="bt-fg"><label class="bt-flabel">View</label><div class="bt-chips">${mPills}</div></div>
+      <div class="bt-fg"><label class="bt-flabel">Customer Type</label><div class="bt-chips">${zmChip('customer','Customer Type')}</div></div>
+      <div class="bt-fg"><label class="bt-flabel">Store Category</label><div class="bt-chips">${zmChip('category','Store Category')}</div></div>
+      <button class="kpi-reset" id="zmReset" title="Clear all Zone Trends filters">↺ Reset</button>
+      <div class="bt-period" style="margin-left:auto;">
+        <span class="bt-period-rng"><b>${zmomFyLabel(zmomFY)}</b> · Apr–Mar</span>
+        <span class="bt-period-tag">Zone Trends</span>
       </div>
     </div>
     <div id="zmMoMHost"></div>
@@ -3944,15 +3938,20 @@ function renderDailyTrends(){
 
   // Mon-first day index (0=Mon … 6=Sun) from an ISO date string.
   const dowOf = iso => { const d = new Date(iso + 'T00:00:00Z').getUTCDay(); return (d + 6) % 7; };
-  const cyOf  = r => { const m = String(r.cy).match(/\d{4}/); return m ? +m[0] : (r.bill_date ? +r.bill_date.slice(0,4) : null); };
+  // Fiscal year (Apr→Mar) of a row, derived from the bill date — matches the
+  // other trend tabs. The `week` field is fiscal-week numbered (Wk 1 ≈ first
+  // week of April), so grouping by fiscal year keeps weeks 1…52 coherent.
+  const fyOf  = r => { if (!r.bill_date || r.bill_date.length < 7) return null; const y=+r.bill_date.slice(0,4), m=+r.bill_date.slice(5,7); return m>=4 ? y : y-1; };
   const wkOf  = r => { const m = String(r.week).match(/\d+/); return m ? +m[0] : null; };
 
-  // Calendar-year universe (pills stay stable while filters change).
+  // Fiscal-year universe (pills stay stable while filters change).
   const yearSet = new Set();
-  for (let i=0;i<RAW.length;i++){ const y = cyOf(RAW[i]); if (y) yearSet.add(y); }
+  for (let i=0;i<RAW.length;i++){ const y = fyOf(RAW[i]); if (y!=null) yearSet.add(y); }
   const yearList = [...yearSet].sort((a,b)=>b-a);
   if (!yearList.length){ host.innerHTML='<div class="no-data">No dated sales rows found.</div>'; return; }
   if (dailyYear == null || !yearSet.has(dailyYear)) dailyYear = yearList[0];
+  const fyLbl   = (typeof zmomFyLabel==='function') ? zmomFyLabel(dailyYear) : ('FY'+String(dailyYear%100).padStart(2,'0'));
+  const fyTitle = `FY ${dailyYear}-${String((dailyYear+1)%100).padStart(2,'0')} (Apr–Mar)`;
 
   // Filter option lists (built from full RAW so the chips stay stable).
   const optSets={}; WT_FILTERS.forEach(f=>optSets[f.key]=new Set());
@@ -3975,11 +3974,11 @@ function renderDailyTrends(){
 
   // ── Build the table only (so filter panels stay open on repaint) ──
   function paint(){
-    // Aggregate: week number → { dow[7]{q,s}, minDate, maxDate }
+    // Aggregate: fiscal week number → { dow[7]{q,s}, minDate, maxDate }
     const wk = {};
     for (let i=0;i<RAW.length;i++){
       const r = RAW[i];
-      if (cyOf(r) !== dailyYear) continue;
+      if (fyOf(r) !== dailyYear) continue;
       if (!r.bill_date || r.bill_date.length<10) continue;
       if (!passFilters(r)) continue;
       const w = wkOf(r); if (w==null) continue;
@@ -3990,7 +3989,9 @@ function renderDailyTrends(){
       if (r.bill_date < e.min) e.min = r.bill_date;
       if (r.bill_date > e.max) e.max = r.bill_date;
     }
-    const weeks = Object.values(wk).sort((a,b)=>a.w-b.w);
+    // Chronological order (Apr→Mar) — sort by the week's earliest date so the
+    // ordering is correct regardless of the week-numbering scheme.
+    const weeks = Object.values(wk).sort((a,b)=> a.min<b.min?-1 : a.min>b.min?1 : a.w-b.w);
 
     const M = dailyMetric;   // 'all' | 'qty' | 'value' | 'asp'
 
@@ -4031,7 +4032,7 @@ function renderDailyTrends(){
     const gQ = totDays.reduce((a,c)=>a+c.q,0), gS = totDays.reduce((a,c)=>a+c.s,0);
     const totDayCells = totDays.map((c,di)=>`<td class="${di===0?'grp-start':''}">${cellInner(c)}</td>`).join('');
     const totalRow = `<tr class="total-row">
-        <td class="dcol">Total</td><td class="dcol2">${dailyYear} · all weeks</td>
+        <td class="dcol">Total</td><td class="dcol2">${fyLbl} · all weeks</td>
         ${totDayCells}
         <td class="totcell">${cellInner({q:gQ,s:gS})}</td>
       </tr>`;
@@ -4047,7 +4048,7 @@ function renderDailyTrends(){
     const colCount = 2 + 7 + 1;
     const body = weeks.length
       ? weeks.map(rowFor).join('') + totalRow
-      : `<tr><td class="dcol">—</td><td class="dcol2">—</td><td colspan="${colCount-2}" style="text-align:center;padding:18px;color:var(--text3)">No sales match the current filters for ${dailyYear}.</td></tr>`;
+      : `<tr><td class="dcol">—</td><td class="dcol2">—</td><td colspan="${colCount-2}" style="text-align:center;padding:18px;color:var(--text3)">No sales match the current filters for ${fyLbl}.</td></tr>`;
 
     const t = document.getElementById('dailyTableHost');
     if (t) t.innerHTML = `<div class="ddt-wrap"><table class="ddt">${thead}<tbody>${body}</tbody></table></div>`;
@@ -4064,7 +4065,7 @@ function renderDailyTrends(){
   }
 
   // ── Control bar ──
-  const yearPills = yearList.map(y=>`<button class="zmom-pill fy-pill${y===dailyYear?' active':''}" data-dyear="${y}">${y}</button>`).join('');
+  const yearPills = yearList.map(y=>`<button class="zmom-pill fy-pill${y===dailyYear?' active':''}" data-dyear="${y}" title="FY ${y}-${String((y+1)%100).padStart(2,'0')} (Apr–Mar)">${(typeof zmomFyLabel==='function')?zmomFyLabel(y):('FY'+String(y%100).padStart(2,'0'))}</button>`).join('');
   const mPills = DAILY_METRICS.map(m=>`<button class="zmom-pill m-pill${m.k===dailyMetric?' active':''}" data-dmetric="${m.k}">${m.label}</button>`).join('');
   const chip = f=>`<div class="mc bt-chip"><button class="mc-btn" id="dcbtn-${f.key}" type="button"><span>${escapeHtml(f.label)}</span><span class="mc-badge" id="dcbadge-${f.key}" style="display:none">0</span><span class="mc-chev">▾</span></button><div class="mc-panel" id="dcpanel-${f.key}"><input type="text" class="ms-search" id="dcsearch-${f.key}" placeholder="Search ${escapeHtml(f.label.toLowerCase())}…"><div class="ms-list" id="dclist-${f.key}"></div><div class="ms-actions"><button class="ms-action-btn" data-dcact="all" data-dck="${f.key}">Select All</button><button class="ms-action-btn" data-dcact="clear" data-dck="${f.key}">Clear All</button></div></div></div>`;
   const locChips = WT_FILTERS.filter(f=>f.group==='loc').map(chip).join('');
@@ -4073,11 +4074,11 @@ function renderDailyTrends(){
   host.innerHTML = `
     <div class="bt-bar" style="flex-direction:column;align-items:stretch;gap:10px;">
       <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
-        <div class="bt-fg"><label class="bt-flabel">Year</label><div class="bt-chips">${yearPills}</div></div>
+        <div class="bt-fg"><label class="bt-flabel">Fiscal Year</label><div class="bt-chips">${yearPills}</div></div>
         <div class="bt-fg"><label class="bt-flabel">View</label><div class="bt-chips">${mPills}</div></div>
         <button class="kpi-reset" id="dtReset" title="Clear all Location &amp; Product filters">↺ Reset</button>
         <div class="bt-period" style="margin-left:auto;">
-          <span class="bt-period-rng"><b>${dailyYear}</b> · by week</span>
+          <span class="bt-period-rng" title="${fyTitle}"><b>${fyLbl}</b> · by week</span>
           <span class="bt-period-tag">Daily Trends</span>
         </div>
       </div>
@@ -4087,7 +4088,7 @@ function renderDailyTrends(){
       </div>
     </div>
     <div id="dailyTableHost"></div>
-    <div class="ddt-note">Each row is a week of <b>${dailyYear}</b> split by day of week (Mon–Sun) · day-of-week derived from the bill date · ASP = Value ÷ Qty · <b>Total</b> column = week total, <b>Total</b> row = year total · updates with the Location &amp; Product filters · independent of the global filters.</div>`;
+    <div class="ddt-note">Each row is a week of <b>${fyLbl}</b> (fiscal year, Apr–Mar) split by day of week (Mon–Sun) · day-of-week derived from the bill date · ASP = Value ÷ Qty · <b>Total</b> column = week total, <b>Total</b> row = FY total · updates with the Location &amp; Product filters · independent of the global filters.</div>`;
 
   // Year pills + metric pills + reset → rebuild; filters → repaint only.
   host.querySelectorAll('.fy-pill').forEach(b=>b.addEventListener('click',()=>{ dailyYear=+b.dataset.dyear; renderDailyTrends(); }));
@@ -4187,8 +4188,8 @@ function renderBrandTrends(){
   const zones=[...zoneSet].sort((a,b)=>kpiZoneRank(a)-kpiZoneRank(b)||String(a).localeCompare(String(b)));
   const blank=()=>({cyQ:0,cyV:0,lyQ:0,lyV:0});
   const growth=(cy,ly)=>{ if(!ly) return cy?{txt:'NEW',cls:'up'}:{txt:'—',cls:'flat'}; const g=(cy-ly)/ly*100; const cls=g>0.05?'up':(g<-0.05?'down':'flat'); const arr=g>0.05?'▲':(g<-0.05?'▼':'•'); return {txt:arr+' '+Math.abs(g).toFixed(1)+'%',cls}; };
-  const qtyCell=c=>{ const g=growth(c.cyQ,c.lyQ); return `<td class="bcell"><div class="bt-cell"><div class="bt-main">${fmt(c.cyQ)}</div><div class="bt-cmp ${g.cls}">${g.txt}<span class="bt-ly">LY ${fmt(c.lyQ)}</span></div></div></td>`; };
-  const valCell=c=>{ const g=growth(c.cyV,c.lyV); return `<td class="bcell"><div class="bt-cell"><div class="bt-main">${fmtV(c.cyV)}</div><div class="bt-cmp ${g.cls}">${g.txt}<span class="bt-ly">LY ${fmtV(c.lyV)}</span></div></div></td>`; };
+  const qtyCell=(c,xc='')=>{ const g=growth(c.cyQ,c.lyQ); return `<td class="bcell${xc}"><div class="bt-cell"><div class="bt-main">${fmt(c.cyQ)}</div><div class="bt-cmp ${g.cls}">${g.txt}<span class="bt-ly">LY ${fmt(c.lyQ)}</span></div></div></td>`; };
+  const valCell=(c,xc='')=>{ const g=growth(c.cyV,c.lyV); return `<td class="bcell${xc}"><div class="bt-cell"><div class="bt-main">${fmtV(c.cyV)}</div><div class="bt-cmp ${g.cls}">${g.txt}<span class="bt-ly">LY ${fmtV(c.lyV)}</span></div></div></td>`; };
   const brandW=200;
 
   // Table renderer — re-run on filter/search changes WITHOUT rebuilding the bar,
@@ -4220,10 +4221,10 @@ function renderBrandTrends(){
       const bc=isTotal
         ? `<td class="bcol" style="left:0;min-width:${brandW}px">TOTAL</td>`
         : `<td class="bcol" style="left:0;min-width:${brandW}px;max-width:${brandW}px" title="${escapeHtml(r.brand)}">${escapeHtml(r.brand)}</td>`;
-      return `<tr class="${isTotal?'total-row':''}">${bc}${qtyCell(r.tot)+valCell(r.tot)}${zones.map(z=>{const c=r.z[z]||blank();return qtyCell(c)+valCell(c);}).join('')}</tr>`;
+      return `<tr class="${isTotal?'total-row':''}">${bc}${qtyCell(r.tot,' bt-totcol')+valCell(r.tot,' bt-totcol')}${zones.map(z=>{const c=r.z[z]||blank();return qtyCell(c)+valCell(c);}).join('')}</tr>`;
     };
-    const grpHead=`<th class="grp" colspan="2">TOTAL</th>`+zones.map(z=>`<th class="grp" colspan="2">${escapeHtml(z)}</th>`).join('');
-    const subHead=`<th>Qty</th><th>Value</th>`.repeat(zones.length+1);
+    const grpHead=`<th class="grp grp-totcol" colspan="2">TOTAL</th>`+zones.map(z=>`<th class="grp" colspan="2">${escapeHtml(z)}</th>`).join('');
+    const subHead=`<th class="sub-totcol">Qty</th><th class="sub-totcol">Value</th>`+`<th>Qty</th><th>Value</th>`.repeat(zones.length);
     const thead=`<thead><tr class="grp"><th class="bcol" style="left:0;min-width:${brandW}px" rowspan="2">Brand</th>${grpHead}</tr><tr class="sub">${subHead}</tr></thead>`;
     const body=rowsArr.length
       ? rowsArr.map(r=>rowHtml(r,false)).join('')+rowHtml(grand,true)
