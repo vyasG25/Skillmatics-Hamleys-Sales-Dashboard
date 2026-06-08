@@ -1315,6 +1315,7 @@ let TARGET_RAW = []; // Target data — kept separate, used for Target vs Achiev
 let TARGET_META = null; // { fileName, storeCount, monthCount, loadedAt }
 let filtered = [];
 let storeNameMap = {};   // store_code -> store_name
+let storeStatusMap = {}; // store_code -> 'active' | 'inactive' | '' (from sales data; latest record wins)
 
 // ── API URL configuration ──
 // All 9 sales JSON files + optional target file.
@@ -1569,7 +1570,8 @@ async function loadDashboardData() {
           city_name: str(row['city']),
           brand_name: str(row['brand']),
           customer_type: str(row['customer_type']),
-          store_category: str(row['store_category'])
+          store_category: str(row['store_category']),
+          status: str(row['status'])
         };
 
         sinceLastYield++;
@@ -1900,7 +1902,7 @@ function parseJsonText(text) {
 
 // Parse a target.json file and store in TARGET_RAW.
 // The JSON is in LONG form — one record per (store, month):
-//   { Zone, State, City, Code, Name, Status, FY, Quarter, Month, Value }
+//   { Zone, State, City, Code, Name, FY, Quarter, Month, Value }
 // We PIVOT it into the WIDE shape the rest of the dashboard expects: one row per
 // store with the dimension columns plus a column per month ("Jun-26": value),
 // so all the existing Target-vs-Achievement logic keeps working unchanged.
@@ -1970,8 +1972,26 @@ function initializeDashboard() {
   FILTERS.forEach(f => selected[f.key].clear());
 
   // Build store_code -> store_name lookup (for the Store dropdown labels)
+  // and store_code -> status lookup (Active/Inactive now lives on sales rows).
+  // For status we let the latest bill_date win, so a store's status is stable
+  // regardless of which of its rows the current filters happen to include.
   storeNameMap = {};
-  RAW.forEach(r => { if (r.store_code) storeNameMap[r.store_code] = r.store_name || r.store_code; });
+  storeStatusMap = {};
+  const _statusSeenDate = {}; // store_code -> bill_date of the status we currently hold
+  RAW.forEach(r => {
+    if (!r.store_code) return;
+    storeNameMap[r.store_code] = r.store_name || r.store_code;
+    const raw = (r.status || '').trim().toLowerCase();
+    if (!raw) return;
+    const norm = /in[\s-]?active|inactive|closed|dormant/.test(raw) ? 'inactive'
+               : /active|open|live/.test(raw) ? 'active' : '';
+    if (!norm) return;
+    const d = r.bill_date || '';
+    if (storeStatusMap[r.store_code] == null || d >= (_statusSeenDate[r.store_code] || '')) {
+      storeStatusMap[r.store_code] = norm;
+      _statusSeenDate[r.store_code] = d;
+    }
+  });
 
   // Render every multi-select option list + summary
   FILTERS.forEach(cfg => { renderList(cfg); updateTrigger(cfg); });
@@ -2332,18 +2352,22 @@ function statCard(title, cols, align) {
   return `<div class="kpi-card"><div class="kpi-card-title">${title}</div><div class="kpi-row ${align || 'left'}">${inner}</div></div>`;
 }
 
-// Active / Inactive store counts come from the Target workbook's Status column.
+// Active / Inactive store counts now come from the Status column on the SALES
+// rows (no longer the Target workbook). We classify each DISTINCT store seen in
+// the current filtered view using the global, filter-stable storeStatusMap, so
+// the numbers stay consistent with the filtered "Unique Products" metric.
 function getStoreStatusCounts() {
-  if (!TARGET_RAW || !TARGET_RAW.length) return { hasTarget: false, active: 0, inactive: 0, total: 0 };
-  const keys = Object.keys(TARGET_RAW[0] || {});
-  const statusKey = keys.find(k => /status/i.test(k));
+  const seen = new Set();
   let active = 0, inactive = 0;
-  for (const row of TARGET_RAW) {
-    const v = statusKey ? String(row[statusKey] || '').trim().toLowerCase() : '';
-    if (/in[\s-]?active|inactive|closed|dormant/.test(v)) inactive++;
-    else if (/active|open|live/.test(v)) active++;
+  for (let i = 0, len = filtered.length; i < len; i++) {
+    const code = filtered[i].store_code;
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    const st = storeStatusMap[code];
+    if (st === 'inactive') inactive++;
+    else if (st === 'active') active++;
   }
-  return { hasTarget: true, active, inactive, total: TARGET_RAW.length, statusKey };
+  return { hasData: seen.size > 0, active, inactive, total: seen.size };
 }
 
 function renderKPI() {
@@ -2365,9 +2389,9 @@ function renderKPI() {
       { value: fmtRs(asp),     label: 'ASP',              color: 'var(--gold)', title: 'Average Selling Price = Sales ÷ Quantity' },
     ], 'left') +
     statCard('Products & Stores', [
-      { value: fmt(uniqueProducts),                    label: 'Unique Products', color: 'var(--accent2)', title: 'Distinct SKUs in sales data' },
-      { value: ss.hasTarget ? fmt(ss.active)   : '—',  label: 'Active Stores',   color: 'var(--green)',   title: 'From Target workbook' },
-      { value: ss.hasTarget ? fmt(ss.inactive) : '—',  label: 'Inactive Stores', color: 'var(--red)',     title: 'From Target workbook' },
+      { value: fmt(uniqueProducts),                  label: 'Unique Products', color: 'var(--accent2)', title: 'Distinct SKUs in sales data' },
+      { value: ss.hasData ? fmt(ss.active)   : '—',  label: 'Active Stores',   color: 'var(--green)',   title: 'Distinct stores marked Active in the current view' },
+      { value: ss.hasData ? fmt(ss.inactive) : '—',  label: 'Inactive Stores', color: 'var(--red)',     title: 'Distinct stores marked Inactive in the current view' },
     ], 'center');
 }
 
