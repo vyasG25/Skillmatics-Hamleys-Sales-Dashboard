@@ -1450,8 +1450,6 @@ async function loadDashboardData() {
     // We use res.text() + parseJsonText() (not res.json()) so that malformed
     // exports with missing commas between objects ("}{" → "},{") are repaired
     // before parsing — the same robust path the old file-upload handler used.
-    const salesSources  = API_SOURCES.filter(s => !s.isTarget);
-    const targetSources = API_SOURCES.filter(s =>  s.isTarget);
     const total = API_SOURCES.length;
 
     async function fetchSource(src) {
@@ -1630,9 +1628,6 @@ const TOP_FIELDS = [
 ];
 let topGroupField = 'product_code'; // default: SKU (Article Code - Article Description)
 let topMetric = 'qty'; // 'qty' | 'value' — Top Performers ranking metric (default Qty)
-let detailSortCol = 'qty';
-let detailSortDir = 'desc';
-let uploadedFileCount = 0;
 
 // Month-on-Month Zone Performance state
 let zmomFY = null;            // selected fiscal-year start year (e.g. 2025 => FY25)
@@ -1646,7 +1641,7 @@ let storeSearchActive = false;
 // Store Trends local bt-bar filters (Customer Type, Store Category, Zone)
 let storeFilt = { zone: new Set(), customer: new Set(), category: new Set() };
 let prodFY = null;            // independent FY selection for the Product Trends tab
-let prodDim = 'brand';        // selected product dimension (brand|luggage|range|size|dept)
+let prodDim = 'brand';        // selected product dimension (brand|family|cls|brick|sku)
 let prodView = 'month';       // Product Trends column view: 'month' | 'quarter' | 'zone'
 let prodSearch = '';          // Product Trends search term (raw)
 let prodSearchActive = false;
@@ -1708,19 +1703,6 @@ const popSel = { month: null, quarter: null, fy: null };
 
 let filterTimer = null;
 function debouncedApply() { if (filterTimer) clearTimeout(filterTimer); filterTimer = setTimeout(applyFilters, 150); }
-
-// Expected column names (will auto-detect header row)
-const EXPECTED_COLS = ["Calendar Day","New Store","Store Name","Family","Class","Brick",
-  "Article Code","Article Description","Brand","Sales Qty","MRP Sales","CY","FY","Quarter",
-  "Month","Week","Monthly Week","Zone","State","City","Customer Type","Store Category"];
-
-// ═══════════════════════════════════════════════════════════════
-// VIEW STATE
-// ═══════════════════════════════════════════════════════════════
-function showDashboard() {
-  document.getElementById('dashboardContent').style.display = 'block';
-  document.getElementById('dashboardContent').classList.add('visible');
-}
 
 // ═══════════════════════════════════════════════════════════════
 // LOADING OVERLAY HELPERS
@@ -1964,13 +1946,6 @@ function buildTargetFromJson(records, fileName) {
 function fmt(n) { return n == null ? '—' : Number(n).toLocaleString('en-IN'); }
 function fmtRs(n) { return (n == null || !isFinite(n)) ? '—' : '₹' + Math.round(n).toLocaleString('en-IN'); }
 function fmtV(n) { if (n == null) return '—'; if (Math.abs(n) >= 10000000) return '₹' + (n/10000000).toFixed(2) + ' Cr'; if (Math.abs(n) >= 100000) return '₹' + (n/100000).toFixed(2) + ' L'; if (Math.abs(n) >= 1000) return '₹' + (n/1000).toFixed(1) + 'K'; return '₹' + fmt(n); }
-function fmtPct(cur, prev) {
-  if (!prev || prev === 0) return '<span class="pop-badge na">N/A</span>';
-  const pct = ((cur - prev) / Math.abs(prev) * 100).toFixed(1);
-  const cls = pct >= 0 ? 'up' : 'dn';
-  const arrow = pct >= 0 ? '▲' : '▼';
-  return `<span class="pop-badge ${cls}">${arrow} ${Math.abs(pct)}%</span>`;
-}
 function fmtDate(d) { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2578,11 +2553,11 @@ function renderPOP() {
 
   el.innerHTML =
     popCard({ title:'Month-to-Date', key:'month', opts:monthOpts, current:popSel.month,
-      curLabel:monthName(my, mm - 1), prevLabel:monthName(my, mm - 2), P:mPair, c:'var(--accent)', cl:'var(--accent-light)' }) +
+      curLabel:monthName(my, mm - 1), P:mPair, c:'var(--accent)', cl:'var(--accent-light)' }) +
     popCard({ title:'Quarter-to-Date', key:'quarter', opts:quarterOpts, current:popSel.quarter,
-      curLabel:qLabel(qy, qn), prevLabel:qLabel(qn === 1 ? qy - 1 : qy, qn === 1 ? 4 : qn - 1), P:qPair, c:'var(--blue)', cl:'var(--blue-light)' }) +
+      curLabel:qLabel(qy, qn), P:qPair, c:'var(--blue)', cl:'var(--blue-light)' }) +
     popCard({ title:'Year-to-Date (FY)', key:'fy', opts:fyOpts, current:popSel.fy,
-      curLabel:fyLabel(fy), prevLabel:fyLabel(fy - 1), P:yPair, c:'var(--red)', cl:'var(--red-light)' });
+      curLabel:fyLabel(fy), P:yPair, c:'var(--red)', cl:'var(--red-light)' });
 
   // Fill / re-filter a period dropdown's list. Checkbox items (same as global
   // filters) but single-select: picking one sets the period and re-renders.
@@ -2878,8 +2853,6 @@ const KPI_DIMS = [
   { label:'Customer Type',  key:'customer', w:120, cls:'muted' },
   { label:'Store Category', key:'category', w:130, cls:'muted' },
 ];
-(function(){ let a=0; KPI_DIMS.forEach(d=>{ d.left=a; a+=d.w; }); })();
-const KPI_DIM_W = KPI_DIMS.reduce((s,d)=>s+d.w,0);
 let kpiVisible = new Set(KPI_GROUPS.map(g=>g.key)); // all groups on by default
 let kpiDefaults = { fy:null, month:null, week:null };
 let kpiSearchTerm = '';
