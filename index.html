@@ -1546,34 +1546,34 @@ async function loadDashboardData() {
         const cy = row['cy'];
         if (cy === '' || cy == null) continue;
 
-        const ac = str(row['sku_code']), ad = str(row['sku_name']);
+        const ac = strU(row['sku_code']), ad = strU(row['sku_name']);
         const sku = ac && ad ? (ac + ' - ' + ad) : (ac || ad);
 
         RAW[writeIdx++] = {
           cy: str(cy),
-          fy: str(row['fy']),
-          quarter: str(row['quarter']),
-          month: str(row['month']),
-          week: str(row['week']),
-          monthly_week: str(row['monthly_week']),
+          fy: strU(row['fy']),
+          quarter: strU(row['quarter']),
+          month: strU(row['month']),
+          week: strU(row['week']),
+          monthly_week: strU(row['monthly_week']),
           bill_date: excelDateToISO(row['date']),
           quantity: +row['qty'] || 0,
           amount: +row['value'] || 0,
-          family: str(row['family']),
-          cls: str(row['class']),
-          brick: str(row['brick']),
+          family: strU(row['family']),
+          cls: strU(row['class']),
+          brick: strU(row['brick']),
           article_code: ac,
           article_desc: ad,
           product_code: sku,
-          store_name: str(row['store_name']),
-          store_code: str(row['store_code']),
-          zone_name: str(row['zone']),
-          state_name: str(row['state']),
-          city_name: str(row['city']),
-          brand_name: str(row['brand']),
-          customer_type: str(row['customer_type']),
-          store_category: str(row['store_category']),
-          status: str(row['status'])
+          store_name: strU(row['store_name']),
+          store_code: strU(row['store_code']),
+          zone_name: strU(row['zone']),
+          state_name: strU(row['state']),
+          city_name: strU(row['city']),
+          brand_name: strU(row['brand']),
+          customer_type: strU(row['customer_type']),
+          store_category: strU(row['store_category']),
+          status: strU(row['status'])
         };
 
         sinceLastYield++;
@@ -1858,6 +1858,12 @@ function yieldToUI() { return new Promise(resolve => setTimeout(resolve, 0)); }
 // Fast string coerce — avoids repeated String() + trim()
 function str(v) { return v == null ? '' : typeof v === 'string' ? v : String(v); }
 
+// Case/whitespace-normalising coerce. Trims and UPPER-CASEs so that values that
+// differ only by letter case ("North"/"NORTH"/"north") or stray padding (" North ")
+// collapse to a single canonical value and never split into duplicate rows in any
+// of the connected reports. Applied to the dimension/label fields at ingestion.
+function strU(v) { return v == null ? '' : String(v).trim().toUpperCase(); }
+
 // Pre-computed date cache for Excel serial → ISO conversion (avoids repeated Date creation)
 const _dateCache = new Map();
 function excelDateToISO(serial) {
@@ -1927,7 +1933,7 @@ function buildTargetFromJson(records, fileName) {
     const month = String(rec[kMonth] == null ? '' : rec[kMonth]).trim();
     if (!month) continue;
     monthSet.add(month);
-    const storeKey = (kCode ? String(rec[kCode]) : '') + '|' + (kName ? String(rec[kName]) : '');
+    const storeKey = (kCode ? strU(rec[kCode]) : '') + '|' + (kName ? strU(rec[kName]) : '');
     let row = rowMap.get(storeKey);
     if (!row) { row = {}; for (const dk of dimKeys) row[dk] = rec[dk]; rowMap.set(storeKey, row); }
     row[month] = (row[month] || 0) + (+rec[kValue] || 0);
@@ -3159,10 +3165,10 @@ function zmomTargetByStoreMonth() {
   const salesNames = new Set(RAW.map(r => r.store_name));
   // Store-code column = dim with best overlap against sales store_code.
   let kCode = null, bestC = -1;
-  dimKeys.forEach(k => { let m = 0; for (const row of TARGET_RAW) { if (salesCodes.has(String(row[k]))) m++; } if (m > bestC) { bestC = m; kCode = k; } });
+  dimKeys.forEach(k => { let m = 0; for (const row of TARGET_RAW) { if (salesCodes.has(strU(row[k]))) m++; } if (m > bestC) { bestC = m; kCode = k; } });
   // Store-name column = remaining dim with best overlap against sales store_name.
   let kName = null, bestN = -1;
-  dimKeys.forEach(k => { if (k === kCode) return; let m = 0; for (const row of TARGET_RAW) { if (salesNames.has(String(row[k]))) m++; } if (m > bestN) { bestN = m; kName = k; } });
+  dimKeys.forEach(k => { if (k === kCode) return; let m = 0; for (const row of TARGET_RAW) { if (salesNames.has(strU(row[k]))) m++; } if (m > bestN) { bestN = m; kName = k; } });
   const kZone = dimKeys.find(k => /zone/i.test(k));
   const kState = dimKeys.find(k => /state/i.test(k));
   const kRegion = dimKeys.find(k => /region/i.test(k));
@@ -3170,11 +3176,11 @@ function zmomTargetByStoreMonth() {
     .map(k => { const [mm, yy] = k.split('-'); return { col: k, key: '20' + yy + '-' + ZMOM_MON3[mm.toLowerCase()] }; })
     .filter(mc => mc.key && /^\d{4}-\d{2}$/.test(mc.key));
   for (const row of TARGET_RAW) {
-    const code = String(row[kCode]); if (!code) continue;
+    const code = strU(row[kCode]); if (!code) continue;
     const ct = out[code] || (out[code] = {});
     if (!meta[code]) meta[code] = {
       zone: kZone ? row[kZone] : '—', state: kState ? row[kState] : '—',
-      region: kRegion ? row[kRegion] : '—', code: code, name: kName ? String(row[kName]) : code,
+      region: kRegion ? row[kRegion] : '—', code: code, name: kName ? strU(row[kName]) : code,
     };
     for (const mc of monthCols) { const v = +row[mc.col] || 0; if (v) ct[mc.key] = (ct[mc.key] || 0) + v; }
   }
@@ -3199,7 +3205,7 @@ function renderTargetAch(){
   const kRegion=dimKeys.find(k=>/region/i.test(k));
   const salesCodes=new Set(RAW.map(r=>r.store_code));
   let kCode=null,best=-1;
-  dimKeys.forEach(k=>{let m=0;for(const row of TARGET_RAW){if(salesCodes.has(String(row[k])))m++;}if(m>best){best=m;kCode=k;}});
+  dimKeys.forEach(k=>{let m=0;for(const row of TARGET_RAW){if(salesCodes.has(strU(row[k])))m++;}if(m>best){best=m;kCode=k;}});
 
   const mkOf=r=>(r.month&&/^\d{4}-\d{2}$/.test(r.month))?r.month:(r.bill_date?r.bill_date.slice(0,7):'');
   // Targets are defined per store and per month, so this panel deliberately ignores
@@ -3246,7 +3252,7 @@ function renderTargetAch(){
   const tgtZ={}, tgtStoreMonth=new Set();
   for(const mc of aggCols){
     for(const row of TARGET_RAW){
-      const code=String(row[kCode]);
+      const code=strU(row[kCode]);
       if(selected.zone.size && !selZoneNorm.has(zNorm(row[kZone]))) continue;
       if(kState && selected.state.size && !selected.state.has(row[kState])) continue;
       if(selected.store.size && !selected.store.has(code)) continue;
